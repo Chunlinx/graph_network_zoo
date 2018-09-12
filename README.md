@@ -4,6 +4,4 @@
 
 python3
 
-## file descriptions:
 
-`mlp_as_gnn.py`: basic gnn

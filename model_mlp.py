@@ -1,3 +1,5 @@
+# basic gnn
+
 import tensorflow as tf
 from model_base import ModelBase
 from utils import *
@@ -40,7 +42,7 @@ class MLP(ModelBase):
                                  placeholders=self.placeholders,
                                  act=tf.nn.relu,
                                  dropout=True,
-                                 sparse_inputs=True,
+                                 input_is_sparse=True,
                                  logging=self.logging))
 
         self.layers.append(Dense(input_dim=self.hidden_dim, #16

@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import time
-from mlp_as_gnn import MLP
+from model_mlp import MLP
 from utils import *
 
 seed = 123

@@ -30,16 +30,16 @@ class LayerBase(object):
         self.vars2 = {}
         logging = kwargs.get('logging', False)
         self.logging = logging
-        self.sparse_inputs = False
+        self.input_is_sparse = False
 
-    def _call(self, inputs):
+    def forward_sub(self, inputs):
         return inputs
 
-    def __call__(self, inputs):
+    def forward(self, inputs):
         with tf.name_scope(self.name):
-            if self.logging and not self.sparse_inputs:
+            if self.logging and not self.input_is_sparse:
                 tf.summary.histogram(self.name + '/inputs', inputs)
-            outputs = self._call(inputs)
+            outputs = self.forward_sub(inputs)
             if self.logging:
                 tf.summary.histogram(self.name + '/outputs', outputs)
             return outputs
@@ -51,7 +51,7 @@ class LayerBase(object):
 
 class Dense(LayerBase):
     """Dense layer."""
-    def __init__(self, input_dim, output_dim, placeholders, dropout=0., sparse_inputs=False,
+    def __init__(self, input_dim, output_dim, placeholders, dropout=0., input_is_sparse=False,
                  act=tf.nn.relu, bias=False, featureless=False, **kwargs):
         super(Dense, self).__init__(**kwargs)
 
@@ -61,7 +61,7 @@ class Dense(LayerBase):
             self.dropout = 0.
 
         self.act = act
-        self.sparse_inputs = sparse_inputs
+        self.input_is_sparse = input_is_sparse
         self.featureless = featureless
         self.bias = bias
 
@@ -77,11 +77,11 @@ class Dense(LayerBase):
         if self.logging:
             self._log_vars()
 
-    def _call(self, inputs):
+    def forward_sub(self, inputs):
         x = inputs #debug看是49216个(node_id,feature_id)=value,实际是[2708,1433]
 
         # dropout
-        if self.sparse_inputs:
+        if self.input_is_sparse:
             x = sparse_dropout(x, 1-self.dropout, self.num_features_nonzero)
         else:
             x = tf.nn.dropout(x, 1-self.dropout)
@@ -89,7 +89,7 @@ class Dense(LayerBase):
         # transform
         # layer1 [2708,1433]*[1433*16]->[2708,16]
         # layer2 [2708,16]*[16,7]->[2708,7]
-        output = dot(x, self.vars['weights'], sparse=self.sparse_inputs)
+        output = dot(x, self.vars['weights'], sparse=self.input_is_sparse)
 
         # bias
         if self.bias:
