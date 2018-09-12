@@ -7,6 +7,37 @@ import tensorflow as tf
 import sys
 
 
+# global unique layer ID dictionary for layer name assignment
+_LAYER_UIDS = {}
+
+def get_layer_uid(layer_name=''):
+    """Helper function, assigns unique layer IDs."""
+    if layer_name not in _LAYER_UIDS:
+        _LAYER_UIDS[layer_name] = 1
+        return 1
+    else:
+        _LAYER_UIDS[layer_name] += 1
+        return _LAYER_UIDS[layer_name]
+
+
+def sparse_dropout(x, keep_prob, noise_shape):
+    """Dropout for sparse tensors."""
+    random_tensor = keep_prob
+    random_tensor += tf.random_uniform(noise_shape)
+    dropout_mask = tf.cast(tf.floor(random_tensor), dtype=tf.bool)
+    pre_out = tf.sparse_retain(x, dropout_mask)
+    return pre_out * (1./keep_prob)
+
+
+def dot(x, y, sparse=False):
+    """Wrapper for tf.matmul (sparse vs dense)."""
+    if sparse:
+        res = tf.sparse_tensor_dense_matmul(x, y)
+    else:
+        res = tf.matmul(x, y)
+    return res
+
+
 def uniform(shape, scale=0.05, name=None):
     """Uniform init."""
     initial = tf.random_uniform(shape, minval=-scale, maxval=scale, dtype=tf.float32)
