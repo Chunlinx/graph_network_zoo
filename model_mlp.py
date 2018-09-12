@@ -3,7 +3,7 @@
 import tensorflow as tf
 from model_base import ModelBase
 from utils import *
-from layers import Dense
+from layers import *
 import time
 flags = tf.app.flags
 FLAGS = flags.FLAGS
@@ -37,20 +37,20 @@ class MLP(ModelBase):
                                         self.placeholders['labels_mask'])
 
     def build_graph(self):
-        self.layers.append(Dense(input_dim=self.input_dim, #feature_dim
-                                 output_dim=self.hidden_dim,  #16
+        self.layers.append(MultiDense(input_dim=self.input_dim, #feature_dim
+                                 output_dim=self.output_dim,  #7
                                  placeholders=self.placeholders,
                                  act=tf.nn.relu,
                                  dropout=True,
                                  input_is_sparse=True,
                                  logging=self.logging))
 
-        self.layers.append(Dense(input_dim=self.hidden_dim, #16
-                                 output_dim=self.output_dim, #7
-                                 placeholders=self.placeholders,
-                                 act=lambda x: x,
-                                 dropout=True,
-                                 logging=self.logging))
+        # self.layers.append(Dense(input_dim=self.hidden_dim, #16
+        #                          output_dim=self.output_dim, #7
+        #                          placeholders=self.placeholders,
+        #                          act=lambda x: x,
+        #                          dropout=True,
+        #                          logging=self.logging))
 
     def predict(self):
         return tf.nn.softmax(self.outputs)
@@ -59,5 +59,6 @@ class MLP(ModelBase):
     def evaluate(self, sess, features, support, labels, mask, placeholders):
         t_test = time.time()
         feed_dict_val = construct_feed_dict(features, support, labels, mask, placeholders)
-        outs_val = sess.run([self.loss, self.accuracy], feed_dict=feed_dict_val)
+        feed_dict_val.update({placeholders['dropout']: 1})
+        outs_val = sess.run([self.loss, self.accuracy, self.layers[0].dropout], feed_dict=feed_dict_val)
         return outs_val[0], outs_val[1], (time.time() - t_test)

@@ -61,11 +61,10 @@ for epoch in range(FLAGS.epochs):
     t = time.time()
     # Construct feed dictionary
     feed_dict = construct_feed_dict(features, support, y_train, train_mask, placeholders)
-    feed_dict.update({placeholders['dropout']: FLAGS.dropout})
+    feed_dict.update({placeholders['dropout']: 0.7})
 
     # Training step
-    outs = sess.run([model.opt_op, model.loss, model.accuracy], feed_dict=feed_dict)
-
+    outs = sess.run([model.opt_op, model.loss, model.accuracy, model.layers[0].dropout], feed_dict=feed_dict)
     # Validation
     cost, acc, duration = model.evaluate(sess, features, support, y_val, val_mask, placeholders)
     cost_val.append(cost)
