@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 from model_base import ModelBase
-from utils import *
+from util.common_function import *
 from layers import *
 import time
 flags = tf.app.flags
@@ -56,9 +56,9 @@ class MLP(ModelBase):
         return tf.nn.softmax(self.outputs)
 
 
-    def evaluate(self, sess, features, support, labels, mask, placeholders):
+    def evaluate(self, sess, features, support, labels, mask, placeholders, construct_feed_dict):
         t_test = time.time()
         feed_dict_val = construct_feed_dict(features, support, labels, mask, placeholders)
         feed_dict_val.update({placeholders['dropout']: 1})
-        outs_val = sess.run([self.loss, self.accuracy, self.layers[0].dropout], feed_dict=feed_dict_val)
+        outs_val = sess.run([self.loss, self.accuracy], feed_dict=feed_dict_val)
         return outs_val[0], outs_val[1], (time.time() - t_test)

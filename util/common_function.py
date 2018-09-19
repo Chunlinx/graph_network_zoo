@@ -2,13 +2,106 @@ import numpy as np
 import pickle as pkl
 import networkx as nx
 import scipy.sparse as sp
-from scipy.sparse.linalg.eigen.arpack import eigsh
 import tensorflow as tf
 import sys
 
 
+def make_batches(size, batch_size):
+    nb_batch = int(np.ceil(size/float(batch_size)))
+    return [(i*batch_size, min(size, (i+1)*batch_size)) for i in range(0, nb_batch)] # zgwang: starting point of each batch
+
+
+def load_graphs_from_file(file_name):
+    data_list = []
+    edge_list = []
+    target_list = []
+    with open(file_name,'r') as f:
+        for line in f:
+            if len(line.strip()) == 0:
+                data_list.append([edge_list,target_list])
+                edge_list = []
+                target_list = []
+            else:
+                digits = []
+                line_tokens = line.split(" ")
+                if line_tokens[0] == "?":
+                    for i in range(1, len(line_tokens)):
+                        digits.append(int(line_tokens[i]))
+                    target_list.append(digits)
+                else:
+                    for i in range(len(line_tokens)):
+                        digits.append(int(line_tokens[i]))
+                    edge_list.append(digits)
+    return data_list
+
+def find_max_edge_id(data_list):
+    max_edge_id = 0
+    for data in data_list:
+        edges = data[0]
+        for item in edges:
+            if item[1] > max_edge_id:
+                max_edge_id = item[1]
+    return max_edge_id
+
+def find_max_node_id(data_list):
+    max_node_id = 0
+    for data in data_list:
+        edges = data[0]
+        for item in edges:
+            if item[0] > max_node_id:
+                max_node_id = item[0]
+            if item[2] > max_node_id:
+                max_node_id = item[2]
+    return max_node_id
+
+def find_max_task_id(data_list):
+    max_node_id = 0
+    for data in data_list:
+        targe = data[1]
+        for item in targe:
+            if item[0] > max_node_id:
+                max_node_id = item[0]
+    return max_node_id
+
+def split_set(data_list):
+    n_examples = len(data_list)
+    idx = range(n_examples)
+    train = idx[:50]
+    val = idx[-950:]
+    return np.array(data_list)[train],np.array(data_list)[val]
+
+def data_convert(data_list, n_annotation_dim):
+    n_nodes = find_max_node_id(data_list)
+    n_tasks = find_max_task_id(data_list)
+    task_data_list = []
+    for i in range(n_tasks):
+        task_data_list.append([])
+    for item in data_list:
+        edge_list = item[0]
+        target_list = item[1]
+        for target in target_list:
+            task_type = target[0] # 是edge空格input_node空格output_node的摆放
+            task_output = target[-1]
+            annotation = np.zeros([n_nodes, n_annotation_dim])# 是node的个数，所以annotation是input_node
+            annotation[target[1]-1][0] = 1
+            task_data_list[task_type-1].append([edge_list, annotation, task_output])
+    return task_data_list
+
+def create_adjacency_matrix(edges, n_nodes, n_edge_types):
+    a = np.zeros([n_nodes, n_nodes * n_edge_types * 2])
+    for edge in edges:
+        src_idx = edge[0] # 很关键，可以看出是node->edge->node摆放数据的
+        e_type = edge[1]
+        tgt_idx = edge[2]
+        a[tgt_idx-1][(e_type - 1) * n_nodes + src_idx - 1] =  1
+        a[src_idx-1][(e_type - 1 + n_edge_types) * n_nodes + tgt_idx - 1] =  1
+    return a
+
+
+
 # global unique layer ID dictionary for layer name assignment
 _LAYER_UIDS = {}
+
 
 def get_layer_uid(layer_name=''):
     """Helper function, assigns unique layer IDs."""
@@ -120,14 +213,14 @@ def load_data(dataset_str):
     names = ['x', 'y', 'tx', 'ty', 'allx', 'ally', 'graph']
     objects = []
     for i in range(len(names)):
-        with open("data/ind.{}.{}".format(dataset_str, names[i]), 'rb') as f:
+        with open("data/gcn_data/ind.{}.{}".format(dataset_str, names[i]), 'rb') as f:
             if sys.version_info > (3, 0):
                 objects.append(pkl.load(f, encoding='latin1'))
             else:
                 objects.append(pkl.load(f))
 
     x, y, tx, ty, allx, ally, graph = tuple(objects)
-    test_idx_reorder = parse_index_file("data/ind.{}.test.index".format(dataset_str))
+    test_idx_reorder = parse_index_file("data/gcn_data/ind.{}.test.index".format(dataset_str))
     test_idx_range = np.sort(test_idx_reorder)
 
     if dataset_str == 'citeseer':
@@ -210,16 +303,6 @@ def preprocess_adj(adj):
     adj_normalized = normalize_adj(adj + sp.eye(adj.shape[0]))
     return sparse_to_tuple(adj_normalized)
 
-
-def construct_feed_dict(features, support, labels, labels_mask, placeholders):
-    """Construct feed dictionary."""
-    feed_dict = dict()
-    feed_dict.update({placeholders['labels']: labels})
-    feed_dict.update({placeholders['labels_mask']: labels_mask})
-    feed_dict.update({placeholders['features']: features})
-    feed_dict.update({placeholders['support'][i]: support[i] for i in range(len(support))})
-    feed_dict.update({placeholders['num_features_nonzero']: features[1].shape})
-    return feed_dict
 
 
 def chebyshev_polynomials(adj, k):

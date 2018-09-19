@@ -57,9 +57,6 @@ class ModelBase(object):
     def _accuracy(self):
         raise NotImplementedError
 
-    def evaluate(self, sess, features, support, labels, mask, placeholders):
-        raise NotImplementedError
-
     def save(self, sess=None):
         if not sess:
             raise AttributeError("TensorFlow session not provided.")
