@@ -2,6 +2,5 @@
 
 ## requirement:
 
-python3
-
+python3, tensorflow==1.10.0
 
