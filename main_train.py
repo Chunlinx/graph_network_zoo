@@ -14,6 +14,7 @@ flags = tf.app.flags
 FLAGS = flags.FLAGS
 
 # cora, citeseer, pubmed --> dense
+# you can see that gnn1step can not solve babi-15, and gnn2step can solve babi-15
 # baba-4 --> gnn1step, gnn2step
 # babi-15 --> gnn2step
 
